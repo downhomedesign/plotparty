@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magnetic Field Lines</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://unpkg.com/p5.js-svg@1.6.0"></script>
+
+</head>
+
+<body>
+
+
+    <script>
+        let shavings = [];
+        let northPole, southPole;
+
+        function setup() {
+            createCanvas(800, 600, SVG);
+
+            // Position the magnetic poles
+            northPole = createVector(width * 0.3, height * 0.5);
+            southPole = createVector(width * 0.7, height * 0.5);
+
+            // Create metal shavings scattered around the canvas
+            for (let i = 0; i < 1500; i++) {
+                let x = random(width);
+                let y = random(height);
+
+                // Avoid placing shavings too close to the poles
+                let distToNorth = dist(x, y, northPole.x, northPole.y);
+                let distToSouth = dist(x, y, southPole.x, southPole.y);
+
+                if (distToNorth > 30 && distToSouth > 30) {
+                    shavings.push({
+                        pos: createVector(x, y),
+                        angle: 0,
+                        length: random(8, 15)
+                    });
+                }
+            }
+
+            calculateFieldLines();
+        }
+
+        function draw() {
+
+
+            // Draw magnetic field effect (subtle background)
+            drawFieldBackground();
+
+            // Draw metal shavings
+            drawShavings();
+
+            // Draw magnetic poles
+            drawPoles();
+        }
+
+        function calculateFieldLines() {
+            for (let shaving of shavings) {
+                // Calculate magnetic field direction at shaving position
+                let fieldVector = getMagneticField(shaving.pos);
+                shaving.angle = fieldVector.heading();
+            }
+        }
+
+        function getMagneticField(pos) {
+            // Vector from north pole to position
+            let fromNorth = p5.Vector.sub(pos, northPole);
+            let distToNorth = fromNorth.mag();
+
+            // Vector from position to south pole
+            let toSouth = p5.Vector.sub(southPole, pos);
+            let distToSouth = toSouth.mag();
+
+            // Normalize and weight by inverse square of distance
+            fromNorth.normalize();
+            toSouth.normalize();
+
+            // Field strength falls off with distance
+            let northStrength = 5000 / (distToNorth * distToNorth + 100);
+            let southStrength = 5000 / (distToSouth * distToSouth + 100);
+
+            // Combine the fields
+            fromNorth.mult(northStrength);
+            toSouth.mult(southStrength);
+
+            let totalField = p5.Vector.add(fromNorth, toSouth);
+            return totalField;
+        }
+
+        function drawShavings() {
+            stroke(200, 220, 255, 180);
+            strokeWeight(1.5);
+
+            for (let shaving of shavings) {
+                push();
+                translate(shaving.pos.x, shaving.pos.y);
+                rotate(shaving.angle);
+
+                // Color based on field strength and position
+                let fieldStrength = getMagneticField(shaving.pos).mag();
+                let intensity = map(fieldStrength, 0, 50, 50, 255);
+                intensity = constrain(intensity, 50, 255);
+
+                // Slight color variation based on proximity to poles
+                let distToNorth = dist(shaving.pos.x, shaving.pos.y, northPole.x, northPole.y);
+                let distToSouth = dist(shaving.pos.x, shaving.pos.y, southPole.x, southPole.y);
+
+                if (distToNorth < distToSouth) {
+                    stroke(255, intensity * 0.7, intensity * 0.7, 180); // Reddish near north
+                } else {
+                    stroke(intensity * 0.7, intensity * 0.7, 255, 180); // Bluish near south
+                }
+
+                line(-shaving.length / 2, 0, shaving.length / 2, 0);
+                pop();
+            }
+        }
+
+        function drawFieldBackground() {
+            // Draw subtle field lines for reference
+            stroke(255, 255, 255, 30);
+            strokeWeight(0.5);
+
+            for (let i = 0; i < 20; i++) {
+                let angle = map(i, 0, 19, -PI / 3, PI / 3);
+                drawFieldLine(northPole.x, northPole.y, angle);
+            }
+        }
+
+        function drawFieldLine(startX, startY, initialAngle) {
+            let x = startX;
+            let y = startY;
+            let prevX = x;
+            let prevY = y;
+
+            for (let step = 0; step < 100; step++) {
+                let pos = createVector(x, y);
+                let field = getMagneticField(pos);
+
+                if (field.mag() < 1) break;
+
+                field.normalize();
+                field.mult(3);
+
+                x += field.x;
+                y += field.y;
+
+                if (x < 0 || x > width || y < 0 || y > height) break;
+
+                let distToSouth = dist(x, y, southPole.x, southPole.y);
+                if (distToSouth < 25) break;
+
+                line(prevX, prevY, x, y);
+                prevX = x;
+                prevY = y;
+            }
+        }
+
+        // Save canvas as SVG when 's' key is pressed
+        function keyPressed() {
+            if (key === 's' || key === 'S') {
+                save("magnet.svg"); // Save the canvas as SVG
+            }
+        }
+        // Regenerate the visualization when clicked
+        function mousePressed() {
+            shavings = [];
+
+            for (let i = 0; i < 1500; i++) {
+                let x = random(width);
+                let y = random(height);
+
+                let distToNorth = dist(x, y, northPole.x, northPole.y);
+                let distToSouth = dist(x, y, southPole.x, southPole.y);
+
+                if (distToNorth > 30 && distToSouth > 30) {
+                    shavings.push({
+                        pos: createVector(x, y),
+                        angle: 0,
+                        length: random(8, 15)
+                    });
+                }
+            }
+
+            calculateFieldLines();
+
+
+        }
+
+    </script>
+</body>
+
+</html>
